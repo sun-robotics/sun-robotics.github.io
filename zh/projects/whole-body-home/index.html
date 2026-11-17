@@ -1,0 +1,494 @@
+<!DOCTYPE html> <html lang="zh"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> 面向家庭长程任务的全身 VLA | Ryan Sun </title> <meta name="author" content="Ryan Sun"> <meta name="description" content="开冰箱、拿对饮料、关门、递送，在 20 自由度移动人形机器人上完成。"> <meta name="keywords" content="robot learning, humanoid, VLA, world action model, real-time chunking, embodied AI"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 930px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%A4%96&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://sun-robotics.github.io/zh/projects/whole-body-home/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav "> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/zh/"> <span class="font-weight-bold">Ryan</span> Sun </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/zh/">关于</a> </li> <li class="nav-item active"> <a class="nav-link" href="/zh/projects/">项目</a> </li> <li class="nav-item"> <a class="nav-link" href="/projects/whole-body-home/" title="Switch to English" lang="en"> <i class="fa-solid fa-language"></i> EN </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">面向家庭长程任务的全身 VLA</h1> <p class="post-description">开冰箱、拿对饮料、关门、递送，在 20 自由度移动人形机器人上完成。</p> </header> <article> <p><strong>一句话总结。</strong> 我把天轶人形机器人上的一个家庭任务，从第一批示教数据一路推进到接入 LLM Agent 的稳定演示：开冰箱，弯腰，从外观相近的饮品中拿对指定的那一瓶，关门，递给人。一个 π0.5 策略统一控制双臂、腰和腿（20 自由度）。大部分提升来自把数据和调试当作工程问题来做，而不是换更大的模型。</p> <div class="row mt-3"> <div class="col-sm mt-3 mt-md-0"> <video src="/assets/video/work/home_full_task.mp4" poster="/assets/img/work/home_full_task.jpg" class="img-fluid rounded z-depth-1" autoplay="" muted="" loop="" playsinline="" controls="" preload="metadata"></video> </div> <div class="col-sm mt-3 mt-md-0"> <video src="/assets/video/work/home_unseen_objects.mp4" poster="/assets/img/work/home_unseen_objects.jpg" class="img-fluid rounded z-depth-1" autoplay="" muted="" loop="" playsinline="" controls="" preload="metadata"></video> </div> <div class="col-sm mt-3 mt-md-0"> <video src="/assets/video/work/home_unseen_category.mp4" poster="/assets/img/work/home_unseen_category.jpg" class="img-fluid rounded z-depth-1" autoplay="" muted="" loop="" playsinline="" controls="" preload="metadata"></video> </div> </div> <div class="caption"> 左：移动底盘上的完整任务（2 倍速）。中：训练中从未出现过的饮品。右：未见过品牌的瓶装水（2 倍速）。 </div> <h3 id="难点">难点</h3> <ul> <li> <strong>是全身，不只是双臂。</strong> 机器人在任务中途需要弯腰、转腰：每条手臂 7 维加 1 维夹爪，再加腰 2 维、腿 2 维，共 20 维动作空间。腰部误差会传到手上：腰角偏差 0.3 rad 时，即使手臂关节完全正确也会抓空。</li> <li> <strong>目标外观相近。</strong> 四瓶饮料并排摆放，错的那瓶只差几厘米，主要靠颜色区分。</li> <li> <strong>自遮挡。</strong> 手臂恰好在策略最需要看清的时候挡住头部相机。</li> <li> <strong>长程。</strong> 一条示教约 1000 帧（27 fps），早期的小错误（比如门没关严）要到最后才暴露。</li> </ul> <h3 id="训练方案">训练方案</h3> <table> <thead> <tr> <th>选择</th> <th>设置</th> <th>原因</th> </tr> </thead> <tbody> <tr> <td>基座</td> <td>π0.5（约 3B），含视觉塔全量微调</td> <td>需要区分的视觉细节是任务特有的</td> </tr> <tr> <td>动作空间</td> <td>关节相对动作，两个夹爪用绝对量</td> <td>消除每条数据的起始位姿偏移；夹爪本质上是二值的</td> </tr> <tr> <td>归一化</td> <td>状态与动作都用分位数（q01 / q99）</td> <td>对腰腿偶发的大幅动作更鲁棒</td> </tr> <tr> <td>动作块</td> <td>50 步，全部执行</td> <td>与<a href="/zh/projects/realtime-execution/">实时执行框架</a>配合</td> </tr> <tr> <td>规模</td> <td>8× A800 DDP，全局 batch 256，bf16，torch.compile</td> <td>与 OpenPI 常用的微调 batch 对齐</td> </tr> <tr> <td>调度</td> <td>lr 2.5e-5，1k 步 warm-up，30k 步余弦降到 2.5e-6（约 2.8 epoch）</td> <td>留出 5% 的 episode 观察何时开始过拟合</td> </tr> <tr> <td>数据增强</td> <td>GPU 端仿射、亮度、对比度、轻度饱和度（±15%），<strong>不做色相</strong> </td> <td>默认色相扰动会把橙汁”变成”可乐</td> </tr> </tbody> </table> <p>数据增强这一行是真实踩过的坑。默认配方（色相 ±0.05、饱和度 0.5–1.5）在多数任务上无害，在这里却抹掉了唯一能区分类别的特征。</p> <h3 id="把数据当作工程系统">把数据当作工程系统</h3> <p>我制定了采集 SOP，把数据集扩充到 <strong>2,934 条（295 万帧）</strong>，覆盖 20 种任务指令，变化维度包括饮品种类、货架槽位和底盘位置。每条数据先经过自动质检，再人工复核：</p> <table> <thead> <tr> <th>检查项</th> <th>规则示例</th> </tr> </thead> <tbody> <tr> <td>夹爪二值性</td> <td>半开状态停留超过 2 s 判为失败</td> </tr> <tr> <td>夹爪抖动</td> <td>5 s 内开合切换 3 次及以上判为失败</td> </tr> <tr> <td>关节跳变</td> <td>单帧跳变超过 0.1 rad 标记</td> </tr> <tr> <td>模式离群</td> <td>开合次数、时刻与轨迹形状偏离众数过远（z-score）标记</td> </tr> <tr> <td>槽位标注</td> <td>按采集日对抓取点聚类，找出目标瓶放错位置的数据</td> </tr> </tbody> </table> <p>在首批数据上，质检流水线标出了 <strong>229 条中的 54 条</strong>（27 条失败，27 条警告）。复核人员在网页界面里逐条确认或改判，清洗后的数据集带清单重新导出。26 fps 与 27 fps 混采的数据先重新对齐时间轴再合并。Qwen3-VL 自动标注子任务阶段（开门、伸手、抓取、取出、关门），成功率可以按阶段统计，而不是只看一个总数。</p> <h3 id="按根因调试而不是盲目重训">按根因调试，而不是盲目重训</h3> <table> <thead> <tr> <th>现象</th> <th>根因</th> <th>解决</th> </tr> </thead> <tbody> <tr> <td>1、4 号位偏低</td> <td>转腰到位的关键决策帧，手臂扫过头部相机视野，遮挡 1–3 号位；4 号位平均集长比 2 号位长 18%，轨迹方差最大</td> <td>调整示教动作；调整训练步数</td> </tr> <tr> <td>搬运途中滑落</td> <td>位置控制的夹爪跟踪误差趋近于 0，等于夹持力趋近于 0</td> <td>客户端设阈值，触发主动夹紧</td> </tr> <tr> <td>拿错品牌</td> <td>背景伪相关，加上破坏颜色的数据增强</td> <td>去掉色相扰动；变换摆放；补采 1200 条</td> </tr> <tr> <td>冰箱门关不严</td> <td>任务末段底盘漂移，示教中从未覆盖</td> <td>补充带底盘变化的示教</td> </tr> </tbody> </table> <h3 id="不止于加数据">不止于加数据</h3> <p>有两类失败，单靠加示教数据改善得很慢，我从两个方向处理：</p> <ul> <li> <strong>从机器人自己的执行中学习。</strong> 每次部署都记录画面、关节和结果，成功和失败都保留。参考 RECAP 的思路，对成功和失败给予不同奖励，让策略从自己的真实表现中学习。</li> <li> <strong>精确的权重编辑。</strong> 针对反复出现的失败，把失败状态与”相位匹配”的成功状态做对比（在关节空间取最近邻，避免把任务阶段差异误当成成败差异），按效应量和梯度归因给注意力头与 MLP 神经元排序。然后只拟合 \(K = 4\) 个标量增益，其余 36 亿参数全部冻结：</li> </ul> \[\min_{g}\ \mathcal{L}_{\text{fail}}(g) \;+\; \lambda\, \mathcal{L}_{\text{keep}}(g) \;+\; \mu \sum_{k} (g_k - 1)^2\] <p>其中 \(\mathcal{L}_{\text{fail}}\) 是失败状态上的 flow-matching 损失，以最近邻专家动作为伪标签；\(\mathcal{L}_{\text{keep}}\) 是随机示教帧上的损失，保证其他行为不变。增益可以无损折叠回输出投影矩阵，编辑后的 checkpoint 和普通模型一样部署。这两个方向都在进行中。</p> <h3 id="真机结果">真机结果</h3> <table> <thead> <tr> <th>测试</th> <th>结果</th> </tr> </thead> <tbody> <tr> <td>首次完整评测</td> <td>92 / 109（84.4%）</td> </tr> <tr> <td>当前演示</td> <td>约 93%，目标 98%</td> </tr> <tr> <td>未见过的饮品品牌</td> <td>4 / 4</td> </tr> <tr> <td>颜色指令</td> <td>6 / 6（完全没见过的物品）</td> </tr> <tr> <td>左 / 右方位指令</td> <td>3 / 4</td> </tr> <tr> <td>准备姿态耗时</td> <td>17 s → 6 s</td> </tr> </tbody> </table> <div class="row mt-3 justify-content-center"> <div class="col-sm-8"> <video src="/assets/video/work/home_ready_pose.mp4" poster="/assets/img/work/home_ready_pose.jpg" class="img-fluid rounded z-depth-1" autoplay="" muted="" loop="" playsinline="" controls="" preload="metadata"></video> </div> </div> <div class="caption"> 重新设计准备姿态，让腰、腿和头部并行动作：17 s → 6 s，晃动更小、视野更清楚。它同时为建图和点位标定提供了固定起点。 </div> <h3 id="从策略到产品">从策略到产品</h3> <p>技能按饮品品类封装为 <strong>MCP 工具</strong>：LLM Agent 通过语音澄清用户要哪种饮料，再调用对应工具，整条链路端到端跑通。尚待解决的问题如实列出：失败后复位的稳定性、拿到饮料与递送之间的衔接、导航停靠距离，以及所有服务都跑在机器人上时的 CPU 争用。泛化测试样本较小，因此刻意给出原始计数。</p> </article> </div> </div> <footer class="fixed-bottom" role="contentinfo"> <div class="container mt-0"> © Copyright 2026 Ryan Sun. Powered by <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> with <a href="https://github.com/alshedivat/al-folio" rel="external nofollow noopener" target="_blank">al-folio</a> theme. Hosted by <a href="https://pages.github.com/" target="_blank" rel="external nofollow noopener">GitHub Pages</a>. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "about",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-项目",
+          title: "项目",
+          description: "2026 年在天轶人形机器人上的真机工作。每个项目先讲问题，再讲关键洞察和证据。",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/zh/projects/";
+          },
+        },{id: "nav-projects",
+          title: "projects",
+          description: "Real-robot work on the Tien Yi humanoid, 2026. Each page leads with the problem, the key insight and the evidence.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/projects/";
+          },
+        },{id: "post-a-post-with-marimo-snippets",
+        
+          title: "a post with marimo snippets",
+        
+        description: "running Python in the browser with marimo",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2025/marimo/";
+          
+        },
+      },{id: "post-a-post-with-plotly-js",
+        
+          title: "a post with plotly.js",
+        
+        description: "this is what included plotly.js code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2025/plotly/";
+          
+        },
+      },{id: "post-a-post-with-image-galleries",
+        
+          title: "a post with image galleries",
+        
+        description: "this is what included image galleries could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/photo-gallery/";
+          
+        },
+      },{id: "post-a-post-with-tabs",
+        
+          title: "a post with tabs",
+        
+        description: "this is what included tabs in a post could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/tabs/";
+          
+        },
+      },{id: "post-a-post-with-typograms",
+        
+          title: "a post with typograms",
+        
+        description: "this is what included typograms code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/typograms/";
+          
+        },
+      },{id: "post-a-post-that-can-be-cited",
+        
+          title: "a post that can be cited",
+        
+        description: "this is what a post that can be cited looks like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/post-citation/";
+          
+        },
+      },{id: "post-a-post-with-pseudo-code",
+        
+          title: "a post with pseudo code",
+        
+        description: "this is what included pseudo code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/pseudocode/";
+          
+        },
+      },{id: "post-a-post-with-code-diff",
+        
+          title: "a post with code diff",
+        
+        description: "this is how you can display code diffs",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/code-diff/";
+          
+        },
+      },{id: "post-a-post-with-advanced-image-components",
+        
+          title: "a post with advanced image components",
+        
+        description: "this is what advanced image components could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/advanced-images/";
+          
+        },
+      },{id: "post-a-post-with-vega-lite",
+        
+          title: "a post with vega lite",
+        
+        description: "this is what included vega lite code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/vega-lite/";
+          
+        },
+      },{id: "post-a-post-with-geojson",
+        
+          title: "a post with geojson",
+        
+        description: "this is what included geojson code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/geojson-map/";
+          
+        },
+      },{id: "post-a-post-with-echarts",
+        
+          title: "a post with echarts",
+        
+        description: "this is what included echarts code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/echarts/";
+          
+        },
+      },{id: "post-a-post-with-chart-js",
+        
+          title: "a post with chart.js",
+        
+        description: "this is what included chart.js code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2024/chartjs/";
+          
+        },
+      },{id: "post-a-post-with-tikzjax",
+        
+          title: "a post with TikZJax",
+        
+        description: "this is what included TikZ code could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/tikzjax/";
+          
+        },
+      },{id: "post-a-post-with-bibliography",
+        
+          title: "a post with bibliography",
+        
+        description: "an example of a blog post with bibliography",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/post-bibliography/";
+          
+        },
+      },{id: "post-a-post-with-jupyter-notebook",
+        
+          title: "a post with jupyter notebook",
+        
+        description: "an example of a blog post with jupyter notebook",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/jupyter-notebook/";
+          
+        },
+      },{id: "post-a-post-with-custom-blockquotes",
+        
+          title: "a post with custom blockquotes",
+        
+        description: "an example of a blog post with custom blockquotes",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/custom-blockquotes/";
+          
+        },
+      },{id: "post-a-post-with-table-of-contents-on-a-sidebar",
+        
+          title: "a post with table of contents on a sidebar",
+        
+        description: "an example of a blog post with table of contents on a sidebar",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/sidebar-table-of-contents/";
+          
+        },
+      },{id: "post-a-post-with-audios",
+        
+          title: "a post with audios",
+        
+        description: "this is what included audios could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/audios/";
+          
+        },
+      },{id: "post-a-post-with-videos",
+        
+          title: "a post with videos",
+        
+        description: "this is what included videos could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/videos/";
+          
+        },
+      },{id: "post-displaying-beautiful-interactive-tables",
+        
+          title: "displaying beautiful interactive tables",
+        
+        description: "an example of how to use interactive tables in al-folio",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/tables/";
+          
+        },
+      },{id: "post-a-post-with-table-of-contents",
+        
+          title: "a post with table of contents",
+        
+        description: "an example of a blog post with table of contents",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2023/table-of-contents/";
+          
+        },
+      },{id: "post-a-post-with-giscus-comments",
+        
+          title: "a post with giscus comments",
+        
+        description: "an example of a blog post with giscus comments",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2022/giscus-comments/";
+          
+        },
+      },{id: "post-یک-نوشتهٔ-راست-چین",
+        
+          title: "یک نوشتهٔ راست‌چین",
+        
+        description: "نمونه‌ای از پشتیبانی زبان‌های راست‌چین",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2022/rtl/";
+          
+        },
+      },{id: "post-a-post-with-redirect",
+        
+          title: "a post with redirect",
+        
+        description: "you can also redirect to assets like pdf",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/assets/pdf/example_pdf.pdf";
+          
+        },
+      },{id: "post-a-post-with-diagrams",
+        
+          title: "a post with diagrams",
+        
+        description: "an example of a blog post with diagrams",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2021/diagrams/";
+          
+        },
+      },{id: "post-a-distill-style-blog-post",
+        
+          title: "a distill-style blog post",
+        
+        description: "an example of a distill-style blog post and main elements",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2021/distill/";
+          
+        },
+      },{id: "post-a-post-with-twitter",
+        
+          title: "a post with twitter",
+        
+        description: "an example of a blog post with twitter",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2020/twitter/";
+          
+        },
+      },{id: "post-a-post-with-disqus-comments",
+        
+          title: "a post with disqus comments",
+        
+        description: "an example of a blog post with disqus comments",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2015/disqus-comments/";
+          
+        },
+      },{id: "post-a-post-with-math",
+        
+          title: "a post with math",
+        
+        description: "an example of a blog post with some math",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2015/math/";
+          
+        },
+      },{id: "post-a-post-with-code",
+        
+          title: "a post with code",
+        
+        description: "an example of a blog post with some code",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2015/code/";
+          
+        },
+      },{id: "post-a-post-with-images",
+        
+          title: "a post with images",
+        
+        description: "this is what included images could look like",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2015/images/";
+          
+        },
+      },{id: "post-a-post-with-formatting-and-links",
+        
+          title: "a post with formatting and links",
+        
+        description: "march &amp; april, looking forward to summer",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/blog/2015/formatting-and-links/";
+          
+        },
+      },{id: "books-the-godfather",
+          title: 'The Godfather',
+          description: "",
+          section: "Books",handler: () => {
+              window.location.href = "/books/the_godfather/";
+            },},{id: "news-world-action-model-running-closed-loop-on-a-real-robot-after-a-human-perturbation-it-re-orders-the-folding-steps-instead-of-replaying-the-demonstration",
+          title: 'World action model running closed-loop on a real robot: after a human perturbation...',
+          description: "",
+          section: "News",},{id: "news-asynchronous-chunked-execution-cuts-real-robot-cloth-folding-from-52-s-to-30-s-with-no-boundary-jitter",
+          title: 'Asynchronous chunked execution cuts real-robot cloth folding from 52 s to 30 s...',
+          description: "",
+          section: "News",},{id: "news-whole-body-π0-5-picks-unseen-drink-brands-and-follows-color-and-left-right-instructions-it-was-never-trained-on",
+          title: 'Whole-body π0.5 picks unseen drink brands and follows color and left/right instructions it...',
+          description: "",
+          section: "News",},{id: "news-runtime-guardrail-for-frozen-vlas-wrong-target-grasps-are-corrected-before-contact-on-both-π0-5-and-pelican-vla",
+          title: 'Runtime guardrail for frozen VLAs: wrong-target grasps are corrected before contact, on both...',
+          description: "",
+          section: "News",},{id: "news-the-fridge-to-handoff-skill-now-runs-as-an-mcp-tool-behind-an-llm-agent-and-voice-interface-end-to-end-demo-success-is-about-93",
+          title: 'The fridge-to-handoff skill now runs as an MCP tool behind an LLM agent...',
+          description: "",
+          section: "News",},{id: "projects-runtime-guardrails-for-frozen-vlas",
+          title: 'Runtime Guardrails for Frozen VLAs',
+          description: "Catching wrong-target grasps before contact, without retraining the policy.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/vla-guardrail/";
+            },},{id: "projects-whole-body-vla-for-long-horizon-home-tasks",
+          title: 'Whole-Body VLA for Long-Horizon Home Tasks',
+          description: "Fridge, right drink, close, hand over, on a 20-DoF mobile humanoid.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/whole-body-home/";
+            },},{id: "projects-real-time-execution-of-a-cloud-served-policy",
+          title: 'Real-Time Execution of a Cloud-Served Policy',
+          description: "Turning 480 ms of network latency into a budget instead of a stall.",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/realtime-execution/";
+            },},{id: "projects-world-action-models-in-the-real-world",
+          title: 'World Action Models in the Real World',
+          description: "When does imagining the future help a robot act?",
+          section: "Projects",handler: () => {
+              window.location.href = "/projects/world-action-models/";
+            },},{id: "teachings-data-science-fundamentals",
+          title: 'Data Science Fundamentals',
+          description: "This course covers the foundational aspects of data science, including data collection, cleaning, analysis, and visualization. Students will learn practical skills for working with real-world datasets.",
+          section: "Teachings",handler: () => {
+              window.location.href = "/teachings/data-science-fundamentals/";
+            },},{id: "teachings-introduction-to-machine-learning",
+          title: 'Introduction to Machine Learning',
+          description: "This course provides an introduction to machine learning concepts, algorithms, and applications. Students will learn about supervised and unsupervised learning, model evaluation, and practical implementations.",
+          section: "Teachings",handler: () => {
+              window.location.href = "/teachings/introduction-to-machine-learning/";
+            },},{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%73%75%6E%79%75%6E%7A%65@%31%32%36.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/sun-robotics", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
