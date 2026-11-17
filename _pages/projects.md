@@ -2,11 +2,11 @@
 layout: page
 title: projects
 permalink: /projects/
-description: A growing collection of your cool projects.
+alt_url: /zh/projects/
+description: Real-robot work on the Tien Yi humanoid, 2026. Each page leads with the problem, the key insight and the evidence.
 nav: true
 nav_order: 3
-display_categories: [work, fun]
-horizontal: false
+horizontal: true
 ---
 
 <!-- pages/projects.md -->
